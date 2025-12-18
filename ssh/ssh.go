@@ -93,7 +93,7 @@ func getOptVal(host *ssh_config.Host, opt string) string {
 }
 
 func LoadSSHConfig(paths []string) ([]*Host, error) {
-	var hosts []*Host
+	var allHosts []*Host
 
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -110,7 +110,6 @@ func LoadSSHConfig(paths []string) ([]*Host, error) {
 
 		f, err := os.Open(filepath.Clean(fp))
 		if err != nil {
-			// ignore the system wide fella if its missing
 			if p == "/etc/ssh/ssh_config" && os.IsNotExist(err) {
 				continue
 			}
@@ -126,18 +125,52 @@ func LoadSSHConfig(paths []string) ([]*Host, error) {
 		}
 
 		for _, h := range cfg.Hosts {
-			// if there are no patterns, what is there to do?
-			if len(h.Patterns) == 0 {
+			if len(h.Patterns) == 0 || h.Patterns[0].String() == "*" {
 				continue
 			}
 
-			// we should not include hosts with wildcards
-			if h.Patterns[0].String() == "*" {
-				continue
-			}
-
-			hosts = append(hosts, NewHost(h))
+			allHosts = append(allHosts, NewHost(h))
 		}
+	}
+
+	// TODO: Figure out if we want to group AND include all hosts with the same hostname
+	// or just the grouped one.
+	// Group hosts by hostname
+	groupedHosts := make(map[string][]*Host)
+	for _, h := range allHosts {
+		groupedHosts[h.Hostname] = append(groupedHosts[h.Hostname], h)
+	}
+
+	hosts := make([]*Host, 0, len(groupedHosts))
+
+	for _, group := range groupedHosts {
+		if len(group) == 0 {
+			continue
+		}
+
+		if len(group) == 1 {
+			hosts = append(hosts, group[0])
+			continue
+		}
+
+		// TODO: This assumes the first one is the most important
+		// maybe we should use the one with the most config options?
+		primary := group[0]
+
+		var aliases []string
+		for _, h := range group[1:] {
+			aliases = append(aliases, h.Name)
+		}
+
+		// also add any existing aliases
+		for _, h := range group {
+			if h.Aliases != "" {
+				aliases = append(aliases, h.Aliases)
+			}
+		}
+
+		primary.Aliases = fmt.Sprintf("(%s)", joinStrings(aliases))
+		hosts = append(hosts, primary)
 	}
 
 	return hosts, nil
