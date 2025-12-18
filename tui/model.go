@@ -32,10 +32,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "q", "ctrl+c":
-			m.quitting = true
-			return m, tea.Quit
-		case "esc":
+		case "esc", "ctrl+c":
 			if m.textInput.Value() != "" {
 				m.textInput.SetValue("")
 				m.filterHosts()
@@ -83,14 +80,12 @@ func (m Model) View() string {
 		lipgloss.Left,
 		m.textInput.View(),
 		baseStyle.Render(m.table.View()),
-		"\n Press q to quit",
+		"\n Press esc to quit",
 	)
 }
 
 func initialModel(fp string) Model {
-	paths := []string{"/etc/ssh/ssh_config", "~/.ssh/config", fp}
-
-	allHosts, err := ssh.LoadSSHConfig(paths)
+	allHosts, err := ssh.LoadSSHConfig([]string{fp})
 	if err != nil {
 		log.Fatal("an error occurred while loading ssh config", "err", err)
 	}

@@ -126,6 +126,16 @@ func LoadSSHConfig(paths []string) ([]*Host, error) {
 		}
 
 		for _, h := range cfg.Hosts {
+			// if there are no patterns, what is there to do?
+			if len(h.Patterns) == 0 {
+				continue
+			}
+
+			// we should not include hosts with wildcards
+			if h.Patterns[0].String() == "*" {
+				continue
+			}
+
 			hosts = append(hosts, NewHost(h))
 		}
 	}
