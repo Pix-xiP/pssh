@@ -72,6 +72,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.textInput.Value() != oldSearch {
 			m.filterHosts()
 			m.table.SetRows(hostsToRows(m.filteredHosts))
+			m.table.GotoTop()
 		}
 	}
 
