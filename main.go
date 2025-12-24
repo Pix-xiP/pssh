@@ -47,6 +47,8 @@ func RunTui(_ context.Context, fs *flag.FlagSet, _ []string) error {
 		return runSSH(selectedHost, loop)
 	}
 
+	log.SetTimeFormat(time.Kitchen)
+
 	return nil
 }
 
