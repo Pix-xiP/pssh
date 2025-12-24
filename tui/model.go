@@ -21,6 +21,8 @@ type Model struct {
 	textInput     textinput.Model
 	table         table.Model
 	quitting      bool
+	width         int
+	height        int
 	selectedHost  *ssh.Host // host for use in connection after selection
 }
 
@@ -30,6 +32,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
+		m.setTableSize(m.width)
+
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "esc", "ctrl+c":
@@ -53,7 +60,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 
-			return m, tea.Quit // Quit the TUI to run the external command
+			return m, tea.Quit
 		}
 
 		// Handle text input and table updates
@@ -76,6 +83,10 @@ func (m Model) View() string {
 		return "Bye!"
 	}
 
+	if m.width < 100 {
+		return "Your terminal is too smol! Please resize to at least 100 columns"
+	}
+
 	return lipgloss.JoinVertical(
 		lipgloss.Left,
 		m.textInput.View(),
@@ -84,25 +95,34 @@ func (m Model) View() string {
 	)
 }
 
+func (m *Model) setTableSize(width int) {
+	nameWidth := int(float64(width) * 0.2)
+	aliasesWidth := int(float64(width) * 0.15)
+	userWidth := int(float64(width) * 0.1)
+	hostnameWidth := int(float64(width) * 0.25)
+	portWidth := int(float64(width) * 0.07)
+
+	m.table.SetColumns([]table.Column{
+		{Title: "Name", Width: nameWidth},
+		{Title: "Aliases", Width: aliasesWidth},
+		{Title: "User", Width: userWidth},
+		{Title: "Hostname", Width: hostnameWidth},
+		{Title: "Port", Width: portWidth},
+	})
+
+	// Subtract space for text input (1 line) and footer (2 lines) and table borders (2 lines)
+	m.table.SetHeight(m.height - 5)
+	m.textInput.Width = width - 10
+}
+
 func initialModel(fp string) Model {
 	allHosts, err := ssh.LoadSSHConfig([]string{fp})
 	if err != nil {
 		log.Fatal("an error occurred while loading ssh config", "err", err)
 	}
 
-	columns := []table.Column{
-		{Title: "Name", Width: 20},
-		{Title: "Aliases", Width: 15},
-		{Title: "User", Width: 10},
-		{Title: "Hostname", Width: 25},
-		{Title: "Port", Width: 7},
-	}
-
 	tbl := table.New(
-		table.WithColumns(columns),
-		table.WithRows(hostsToRows(allHosts)),
 		table.WithFocused(true),
-		table.WithHeight(9),
 	)
 
 	s := table.DefaultStyles()
@@ -120,14 +140,16 @@ func initialModel(fp string) Model {
 	txtInput.Placeholder = "Search SSH hosts..."
 	txtInput.Focus()
 	txtInput.CharLimit = 200
-	txtInput.Width = 40
 
 	m := Model{
 		hosts:     allHosts,
 		textInput: txtInput,
 		table:     tbl,
+		height:    20,
 	}
 
+	m.setTableSize(80)
+	m.table.SetRows(hostsToRows(allHosts))
 	m.filterHosts()
 
 	return m
