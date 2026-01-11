@@ -97,11 +97,11 @@ func (m Model) View() string {
 }
 
 func (m *Model) setTableSize(width int) {
-	nameWidth := int(float64(width) * 0.2)
-	aliasesWidth := int(float64(width) * 0.15)
+	nameWidth := int(float64(width) * 0.25)
+	aliasesWidth := int(float64(width) * 0.20)
 	userWidth := int(float64(width) * 0.1)
-	hostnameWidth := int(float64(width) * 0.25)
-	portWidth := int(float64(width) * 0.07)
+	hostnameWidth := int(float64(width) * 0.35)
+	portWidth := int(float64(width) * 0.08)
 
 	m.table.SetColumns([]table.Column{
 		{Title: "Name", Width: nameWidth},
@@ -113,7 +113,7 @@ func (m *Model) setTableSize(width int) {
 
 	// Subtract space for text input (1 line) and footer (2 lines) and table borders (2 lines)
 	m.table.SetHeight(m.height - 5)
-	m.textInput.Width = width - 10
+	m.textInput.Width = width - 4
 }
 
 func initialModel(fp string) Model {
@@ -149,7 +149,7 @@ func initialModel(fp string) Model {
 		height:    20,
 	}
 
-	m.setTableSize(80)
+	m.setTableSize(100)
 	m.table.SetRows(hostsToRows(allHosts))
 	m.filterHosts()
 
