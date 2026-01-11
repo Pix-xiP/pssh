@@ -14,9 +14,7 @@ import (
 	"github.com/pix-xip/pssh/tui"
 )
 
-const (
-	defaultSSHConfig = "~/.ssh/config"
-)
+const defaultSSHConfig = "~/.ssh/config"
 
 var Version string
 
@@ -24,7 +22,6 @@ func main() {
 	r := command.Root().Help("pssh is a TUI ssh manager").
 		Flags(func(fs *flag.FlagSet) {
 			fs.String("ssh-config", defaultSSHConfig, "path to ssh config file")
-			fs.Bool("loop", false, "loop until SSH connection successfully connects")
 		})
 
 	r.Action(RunTui)
@@ -40,30 +37,28 @@ func main() {
 
 func RunTui(_ context.Context, fs *flag.FlagSet, _ []string) error {
 	fp := command.Lookup[string](fs, "ssh-config")
-	loop := command.Lookup[bool](fs, "loop")
 
-	selectedHost := tui.SelectHost(fp)
-	if selectedHost != nil {
-		return runSSH(selectedHost, loop)
+	for {
+		selectedHost := tui.SelectHost(fp)
+		if selectedHost == nil {
+			// User quit the TUI
+			return nil
+		}
+
+		if err := runSSH(selectedHost); err != nil {
+			log.Error("unable to connect to host", "err", err)
+		}
 	}
-
-	log.SetTimeFormat(time.Kitchen)
-
-	return nil
 }
 
-func runSSH(host *ssh.Host, loop bool) error {
+func runSSH(host *ssh.Host) error {
 	tmpl := "ssh {{.Name}}" // TODO: make this configurable
 	// IMPROV: could also add a {{.Comamand}} from CLI to run commnds via connection?
-
-	if !loop {
-		return host.RunCmdTmpl(tmpl)
-	}
 
 	for {
 		err := host.RunCmdTmpl(tmpl)
 		if err == nil {
-			log.Info("Connection closed.")
+			// log.Info("Connection closed.")
 			break
 		}
 
@@ -72,6 +67,7 @@ func runSSH(host *ssh.Host, loop bool) error {
 			// This is an expected error from ssh, so we can retry.
 			log.Infof("Connection failed, retrying in 2 seconds. Press Ctrl+C to cancel.")
 			time.Sleep(2 * time.Second)
+
 			continue
 		}
 
