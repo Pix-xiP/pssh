@@ -1,0 +1,3 @@
+Host test-host
+    HostName test-host.example.com
+    User test

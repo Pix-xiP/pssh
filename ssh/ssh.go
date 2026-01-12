@@ -92,8 +92,61 @@ func getOptVal(host *ssh_config.Host, opt string) string {
 	return ""
 }
 
+func loadSSHConfig(path, home string) ([]*ssh_config.Host, error) {
+	var fp string
+
+	if strings.HasPrefix(path, "~/") {
+		fp = filepath.Join(home, path[2:])
+	} else {
+		fp = path
+	}
+
+	f, err := os.Open(filepath.Clean(fp))
+	if err != nil {
+		if path == "/etc/ssh/ssh_config" && os.IsNotExist(err) {
+			return nil, nil
+		}
+
+		return nil, fmt.Errorf("could not open ssh config file %s: %w", fp, err)
+	}
+
+	defer func() { _ = f.Close() }()
+
+	cfg, err := ssh_config.Decode(f)
+	if err != nil {
+		return nil, fmt.Errorf("could not decode ssh config file %s: %w", fp, err)
+	}
+
+	hosts := make([]*ssh_config.Host, 0, len(cfg.Hosts))
+
+	for _, h := range cfg.Hosts {
+		if len(h.Patterns) > 0 && h.Patterns[0].String() == "*" {
+			for _, node := range h.Nodes {
+				if after, ok := strings.CutPrefix(strings.ToLower(node.String()), "include "); ok {
+					incPath := strings.TrimSpace(after)
+
+					includedHosts, err := loadSSHConfig(incPath, home)
+					if err != nil {
+						return nil, err
+					}
+
+					hosts = append(hosts, includedHosts...)
+				}
+			}
+		}
+
+		if len(h.Patterns) == 0 || h.Patterns[0].String() == "*" {
+			continue
+		}
+
+		hosts = append(hosts, h)
+	}
+
+	return hosts, nil
+}
+
 func LoadSSHConfig(paths []string) ([]*Host, error) {
-	var allHosts []*Host
+	var allSSHHosts []*ssh_config.Host
 
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -101,36 +154,18 @@ func LoadSSHConfig(paths []string) ([]*Host, error) {
 	}
 
 	for _, p := range paths {
-		var fp string
-		if strings.HasPrefix(p, "~/") {
-			fp = filepath.Join(home, p[2:])
-		} else {
-			fp = p
-		}
-
-		f, err := os.Open(filepath.Clean(fp))
+		hosts, err := loadSSHConfig(p, home)
 		if err != nil {
-			if p == "/etc/ssh/ssh_config" && os.IsNotExist(err) {
-				continue
-			}
-
-			return nil, fmt.Errorf("could not open ssh config file %s: %w", fp, err)
+			return nil, err
 		}
 
-		defer func() { _ = f.Close() }()
+		allSSHHosts = append(allSSHHosts, hosts...)
+	}
 
-		cfg, err := ssh_config.Decode(f)
-		if err != nil {
-			return nil, fmt.Errorf("could not decode ssh config file %s: %w", fp, err)
-		}
+	allHosts := make([]*Host, 0, len(allSSHHosts))
 
-		for _, h := range cfg.Hosts {
-			if len(h.Patterns) == 0 || h.Patterns[0].String() == "*" {
-				continue
-			}
-
-			allHosts = append(allHosts, NewHost(h))
-		}
+	for _, h := range allSSHHosts {
+		allHosts = append(allHosts, NewHost(h))
 	}
 
 	// TODO: Figure out if we want to group AND include all hosts with the same hostname

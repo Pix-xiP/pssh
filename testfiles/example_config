@@ -1,0 +1,22 @@
+Include ./testfiles/bonus_config
+
+Host bestie
+	Hostname 10.0.0.1
+	User bestie 
+	IdentityFile ~/.ssh/bestie
+
+Host foobie
+	Hostname 10.0.0.2
+	User foobie
+	IdentityFile ~/.ssh/foobie
+	Include ./testfiles/foobie_config
+
+Host barbie
+	Hostname 10.0.0.3
+	User barbie
+	IdentityFile ~/.ssh/barbie
+
+Host omega
+	Hostname 10.0.0.4
+	User omega
+	IdentityFile ~/.ssh/omega
