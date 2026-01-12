@@ -1,3 +1,9 @@
 Host test-host
     HostName test-host.example.com
     User test
+
+Host extra-bestie
+	Hostname 10.0.0.1
+	User bestie 
+	IdentityFile ~/.ssh/bestie
+

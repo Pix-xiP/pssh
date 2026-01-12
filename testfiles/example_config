@@ -20,3 +20,8 @@ Host omega
 	Hostname 10.0.0.4
 	User omega
 	IdentityFile ~/.ssh/omega
+
+Host aliased_omega
+	Hostname 10.0.0.4
+	User omega
+	IdentityFile ~/.ssh/omega

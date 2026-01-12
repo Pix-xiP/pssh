@@ -120,18 +120,16 @@ func loadSSHConfig(path, home string) ([]*ssh_config.Host, error) {
 	hosts := make([]*ssh_config.Host, 0, len(cfg.Hosts))
 
 	for _, h := range cfg.Hosts {
-		if len(h.Patterns) > 0 && h.Patterns[0].String() == "*" {
-			for _, node := range h.Nodes {
-				if after, ok := strings.CutPrefix(strings.ToLower(node.String()), "include "); ok {
-					incPath := strings.TrimSpace(after)
+		for _, node := range h.Nodes {
+			if after, ok := strings.CutPrefix(strings.TrimSpace(strings.ToLower(node.String())), "include "); ok {
+				incPath := strings.TrimSpace(after)
 
-					includedHosts, err := loadSSHConfig(incPath, home)
-					if err != nil {
-						return nil, err
-					}
-
-					hosts = append(hosts, includedHosts...)
+				includedHosts, err := loadSSHConfig(incPath, home)
+				if err != nil {
+					return nil, err
 				}
+
+				hosts = append(hosts, includedHosts...)
 			}
 		}
 
